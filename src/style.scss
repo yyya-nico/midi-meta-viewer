@@ -1,0 +1,270 @@
+@charset "UTF-8";
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --accent: rgb(233, 233, 233);
+    --scrollbarHandle: rgba(255, 255, 255, 0.2);
+    --scrollbarHandleHover: rgba(255, 255, 255, 0.4);
+    --header-height: 56px;
+}
+
+html,
+body {
+    overscroll-behavior: contain;
+}
+
+html,
+html * {
+    scrollbar-color: var(--scrollbarHandle) transparent;
+    scrollbar-width: thin
+}
+
+html::-webkit-scrollbar,
+html *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px
+}
+
+html::-webkit-scrollbar-track,
+html *::-webkit-scrollbar-track {
+    background: #ffffff1a
+}
+
+html::-webkit-scrollbar-thumb,
+html *::-webkit-scrollbar-thumb {
+    background: var(--scrollbarHandle)
+}
+
+html::-webkit-scrollbar-thumb:hover,
+html *::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbarHandleHover)
+}
+
+html::-webkit-scrollbar-thumb:active,
+html *::-webkit-scrollbar-thumb:active {
+    background: var(--accent)
+}
+
+body {
+    margin: 0;
+    background-color: #1f1f1f;
+    color: #efefef;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-weight: 400;
+    line-height: 1.6;
+}
+
+h1 {
+  font-size: inherit;
+  font-weight: 400;
+}
+
+a:any-link {
+    color: #66ccff;
+    text-decoration: none;
+
+    &:hover {
+        text-decoration: underline;
+    }
+}
+
+ul {
+    padding-left: 25px;
+}
+
+dd {
+    margin-left: 40px;
+
+    +dt {
+        margin-top: 10px;
+    }
+}
+
+hr {
+    height: 1px;
+    margin: 0 10px;
+    border: 0;
+    background-color: #7f7f7f;
+}
+
+fieldset {
+  border-style: solid;
+  border-width: 2px;
+  border-color: #7f7f7f;
+  border-radius: 5px;
+  padding: 10px;
+}
+
+legend {
+  padding: 0 8px;
+}
+
+label {
+    display: block;
+}
+
+input[type="checkbox"] {
+    accent-color: #66ccff;
+}
+
+input[type="range"] {
+    height: 2px;
+    background-color: #e5e5e5;
+    appearance: none;
+
+    &::-webkit-slider-thumb {
+        width: 12px;
+        height: 12px;
+        background-color: #ffffff;
+        border-radius: 50%;
+        appearance: none;
+        cursor: pointer;
+    }
+
+    &::-moz-range-thumb {
+        width: 12px;
+        height: 12px;
+        border: 0;
+        background-color: #ffffff;
+        border-radius: 50%;
+        appearance: none;
+        cursor: pointer;
+    }
+}
+
+select,
+input[type="text"],
+input[type="date"],
+input[type="time"] {
+    padding: 8px 10px;
+    border: 1px solid gray;
+    border-radius: 5px;
+    color: lightgray;
+    background: #1f1f1f;
+    font-family: inherit;
+    color-scheme: dark;
+
+    &::placeholder {
+        color: #7f7f7f;
+    }
+
+    &:disabled {
+        background-color: #606060;
+        color: #7f7f7f;
+    }
+}
+
+button {
+    padding: 5px 13px;
+    border: 0;
+    border-radius: 5px;
+    background-color: #333333;
+    color: lightgray;
+    font-size: 1em;
+    font-family: inherit;
+    cursor: pointer;
+
+    &:disabled {
+        background-color: #111111;
+        color: #7f7f7f;
+        cursor: default;
+    }
+}
+
+details {
+    overflow: hidden;
+    border-radius: 10px;
+    background-color: #232323;
+    box-shadow: 0 0 8px 0 #000000;
+
+    summary {
+        padding: 10px;
+        background-color: #323232;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    p,
+    div,
+    details {
+        margin: 10px;
+    }
+}
+
+blockquote {
+    margin: 8px 5px;
+    border-left: 3px solid #333333;
+    padding-left: 8px;
+}
+
+header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    overflow: hidden;
+    height: var(--header-height);
+    padding: 15px 12.5px;
+    background: #111111;
+    font-size: 18px;
+    line-height: 26px;
+    white-space: nowrap;
+    word-break: break-all;
+    text-overflow: ellipsis;
+
+    a:any-link {
+        color: inherit;
+    }
+}
+
+.wrap {
+    width: 100%;
+    padding: 0 10px;
+
+    >* {
+        width: 100%;
+        max-width: 600px;
+        margin: 20px auto;
+    }
+
+    label[for="file-input"] {
+      display: flex;
+      position: relative;
+      height: 120px;
+      @extend button;
+      text-align: center;
+
+      .file-input-text {
+        margin: auto;
+      }
+    }
+
+    #file-input {
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    fieldset {
+      margin: 15px auto;
+      legend {
+        text-align: center;
+      }
+    }
+
+    @media (width < 1024px) {
+        >* {
+            margin: 15px auto;
+        }
+    }
+}
