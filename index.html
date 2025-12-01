@@ -11,21 +11,22 @@
   <body>
     <header>
       <h1><a href="/midi-meta-viewer">MIDI メタ情報ビューア</a></h1>
+      <div class="song-name"></div>
     </header>
     <div class="wrap">
-      <label for="file-input">
-        <span class="file-input-text">MIDIファイルを選択</span>
-        <input type="file" id="file-input" accept="audio/midi" />
-      </label>
-      <details open>
-          <summary>説明</summary>
+      <div class="sub">
+        <label for="file-input">
+          <span class="file-input-text">MIDIファイルを選択</span>
+          <input type="file" id="file-input" accept="audio/midi" multiple />
+        </label>
+        <div class="description">
           <p>
-              MIDIファイルのメタ情報を表示します。XFフォーマットの情報も表示します。<br>
-              曲名、著作表記などのテキスト情報が確認できます。
+            MIDIファイルのメタ情報を表示します。XFフォーマットの情報も表示します。曲名、著作表記などのテキスト情報が確認できます。
           </p>
-      </details>
-      <div id="meta-view">
+        </div>
+        <ul id="midi-list"></ul>
       </div>
+      <div id="meta-view"></div>
     </div>
   </body>
 </html>

@@ -1,9 +1,43 @@
 import './style.scss'
 
+import { htmlspecialchars } from './utils';
+
+const initialTitle = document.title;
+const songNameDiv = document.querySelector('.song-name') as HTMLDivElement;
 const fileInput = document.getElementById('file-input') as HTMLInputElement;
 const fileInputText = document.querySelector('.file-input-text') as HTMLSpanElement;
+const midiList = document.getElementById('midi-list') as HTMLUListElement;
 const metaView = document.getElementById('meta-view') as HTMLDivElement;
 
+// XF情報の型
+type XFInfo = {
+  共通: { type: string; text: string }[];
+  言語別: { type: string; text: string }[];
+};
+
+// 通常のメタイベント
+type NormalMetaEvent = {
+  type: string;
+  text: string;
+};
+
+// XFメタイベント
+type XFMetaEvent = {
+  type: 'XF';
+  info: XFInfo;
+};
+
+// メタイベントの型
+type MetaEvent = NormalMetaEvent | XFMetaEvent;
+
+// トラックメタ情報の型
+type TrackMeta = {
+  track: number;
+  meta: MetaEvent[];
+};
+
+// トラックメタリストの型
+type TrackMetaList = TrackMeta[];
 
 // MIDIメタイベントタイプ
 const META_EVENT_TYPES: Record<number, string> = {
@@ -63,7 +97,7 @@ const parseMidi = (data: Uint8Array) => {
   }
 
   // トラックごとのメタ情報リスト
-  const trackMetaList: { track: number, meta: ({ type: string, text: string } | { type: 'XF', info: { 共通: { type: string, text: string }[], 言語別: { type: string, text: string }[] } })[] }[] = [];
+  const trackMetaList: TrackMetaList = [];
 
   // ヘッダチャンクをスキップ
   let offset = 14; // MThd(4) + size(4) + format(2) + ntrks(2) + division(2)
@@ -159,6 +193,28 @@ const parseMidi = (data: Uint8Array) => {
     offset = end;
   }
 
+  return trackMetaList;
+};
+
+const renderMidiList = (fileTrackMetaLists: { name: string, meta?: TrackMetaList, error?: any }[]) => {
+  // midiListをクリア
+  midiList.textContent = '';
+  const html = fileTrackMetaLists.map(file => {
+    const midiSongName = (file.meta && file.meta[0]?.meta.find(m => m.type === '曲名') as { type: string, text: string } | undefined)?.text;
+    const xfInfo = (file.meta && file.meta[1]?.meta.find(m => m.type === 'XF') as { type: 'XF', info: XFInfo } | undefined)?.info;
+    const xfSongName = xfInfo?.言語別.find(item => item.type === '曲名')?.text || xfInfo?.共通.find(item => item.type === '曲名')?.text;
+    const songName = xfSongName || midiSongName;
+    return `<li>
+      <button value="${htmlspecialchars(file.name)}" data-song-name="${htmlspecialchars(songName || '')}">
+        ${songName ? `<div class="song-name">${htmlspecialchars(songName)}</div>` : ""}
+        <div class="file-name">${htmlspecialchars(file.name)}</div>
+      </button>
+    </li>`;
+  }).join('\n');
+  midiList.innerHTML = html;
+};
+
+const renderMetaView = (trackMetaList: TrackMetaList) => {
   // metaViewをクリア
   metaView.textContent = '';
   let hasMeta = false;
@@ -211,18 +267,59 @@ const parseMidi = (data: Uint8Array) => {
 };
 
 const initialFileInputText = fileInputText.textContent;
+let fileTrackMetaLists: { name: string, meta?: TrackMetaList, error?: any }[] = [];
 fileInput.addEventListener('change', async () => {
-  const file = fileInput.files?.[0];
-  if (file) {
-    fileInputText.textContent = file.name;
-    const binaryArray = new Uint8Array(await file.arrayBuffer());
-    try {
-      parseMidi(binaryArray);
-    } catch (e: any) {
-      metaView.textContent = e.message || 'MIDIファイルの解析に失敗しました。';
-    }
-  } else {
+  const files = fileInput.files;
+  if (!files || files.length === 0) {
+    songNameDiv.textContent = '';
     fileInputText.textContent = initialFileInputText;
+    midiList.textContent = '';
     metaView.textContent = '';
+    return;
   }
+  fileInputText.textContent = `${files.length}個のファイル`;
+  const fileBinaryArrays = await Promise.all([...files]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(async file => ({
+    name: file.name,
+    data: new Uint8Array(await file.arrayBuffer())
+  })));
+  fileTrackMetaLists = fileBinaryArrays.map(({ name, data }) => {
+    try {
+      return {
+        name,
+        meta: parseMidi(data)
+      };
+    } catch (e: any) {
+      return {
+        name,
+        error: e
+      };
+    }
+  });
+  renderMidiList(fileTrackMetaLists);
+});
+
+midiList.addEventListener("click", async (e) => {
+  const button = (e.target as HTMLElement).closest("button") as HTMLButtonElement;
+  if (!button) {
+      return;
+  }
+  midiList.querySelector(".active")?.classList.remove("active");
+  button.classList.add("active");
+  const songName = button.dataset.songName;
+  const fileName = button.value;
+  document.title = `${initialTitle} - ${songName || fileName}`;
+  songNameDiv.textContent = songName || fileName;
+  const fileTrackMetaList = fileTrackMetaLists.find(file => file.name === fileName);
+  if (!fileTrackMetaList) return;
+  console.log(fileTrackMetaList);
+  if ('error' in fileTrackMetaList) {
+    metaView.textContent = fileTrackMetaList.error.message || 'MIDIファイルの解析に失敗しました。';
+    return;
+  } else if (!fileTrackMetaList.meta) {
+    metaView.textContent = 'メタ情報が見つかりませんでした。';
+    return;
+  }
+  renderMetaView(fileTrackMetaList.meta);
 });
