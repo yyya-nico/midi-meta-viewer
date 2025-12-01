@@ -347,5 +347,7 @@ midiList.addEventListener("keydown", (e) => {
       nextIndex = (currentIndex - 1 + buttons.length) % buttons.length;
     }
   }
-  selectMidiFile(buttons[nextIndex]);
+  const button = buttons[nextIndex];
+  selectMidiFile(button);
+  button.focus();
 });
