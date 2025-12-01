@@ -309,7 +309,6 @@ const selectMidiFile = (button: HTMLButtonElement) => {
   songNameDiv.textContent = songName || fileName;
   const fileTrackMetaList = fileTrackMetaLists.find(file => file.name === fileName);
   if (!fileTrackMetaList) return;
-  console.log(fileTrackMetaList);
   if ('error' in fileTrackMetaList) {
     metaView.textContent = fileTrackMetaList.error.message || 'MIDIファイルの解析に失敗しました。';
     return;
