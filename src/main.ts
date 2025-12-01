@@ -300,11 +300,7 @@ fileInput.addEventListener('change', async () => {
   renderMidiList(fileTrackMetaLists);
 });
 
-midiList.addEventListener("click", async (e) => {
-  const button = (e.target as HTMLElement).closest("button") as HTMLButtonElement;
-  if (!button) {
-      return;
-  }
+const selectMidiFile = (button: HTMLButtonElement) => {
   midiList.querySelector(".active")?.classList.remove("active");
   button.classList.add("active");
   const songName = button.dataset.songName;
@@ -322,4 +318,34 @@ midiList.addEventListener("click", async (e) => {
     return;
   }
   renderMetaView(fileTrackMetaList.meta);
+};
+
+midiList.addEventListener("click", async (e) => {
+  const button = (e.target as HTMLElement).closest("button") as HTMLButtonElement;
+  if (!button) {
+      return;
+  }
+  selectMidiFile(button);
+});
+
+midiList.addEventListener("keydown", (e) => {
+  if (e.key !== "ArrowUp" && e.key !== "ArrowDown") {
+    return;
+  }
+  const buttons = Array.from(midiList.querySelectorAll("button")) as HTMLButtonElement[];
+  if (buttons.length === 0) {
+    return;
+  }
+  e.preventDefault();
+  const activeButton = midiList.querySelector("button.active") as HTMLButtonElement | null;
+  let nextIndex = 0;
+  if (activeButton) {
+    const currentIndex = buttons.indexOf(activeButton);
+    if (e.key === "ArrowDown") {
+      nextIndex = (currentIndex + 1) % buttons.length;
+    } else {
+      nextIndex = (currentIndex - 1 + buttons.length) % buttons.length;
+    }
+  }
+  selectMidiFile(buttons[nextIndex]);
 });
