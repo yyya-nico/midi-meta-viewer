@@ -3,7 +3,13 @@ import './style.scss'
 import { htmlspecialchars } from './utils';
 
 const initialTitle = document.title;
+const tabletWidth = 768;
+const isSmartphoneMedia = window.matchMedia(`(width < ${tabletWidth}px)`);
+const isSmartphone = () => isSmartphoneMedia.matches;
+
+const back = document.getElementById('back') as HTMLButtonElement;
 const songNameDiv = document.querySelector('.song-name') as HTMLDivElement;
+const sub = document.querySelector('.sub') as HTMLDivElement;
 const fileInput = document.getElementById('file-input') as HTMLInputElement;
 const fileInputText = document.querySelector('.file-input-text') as HTMLSpanElement;
 const midiList = document.getElementById('midi-list') as HTMLUListElement;
@@ -300,9 +306,40 @@ fileInput.addEventListener('change', async () => {
   renderMidiList(fileTrackMetaLists);
 });
 
-const selectMidiFile = (button: HTMLButtonElement) => {
-  midiList.querySelector(".active")?.classList.remove("active");
-  button.classList.add("active");
+const switchPanel = (elem: HTMLElement) => {
+  const pairElem = elem === sub ? metaView : sub;
+  pairElem.hidden = true;
+  elem.hidden = false;
+  if (elem === metaView) {
+    back.hidden = false;
+  } else {
+    back.hidden = true;
+    document.title = initialTitle;
+    songNameDiv.textContent = '';
+    midiList.querySelector('.active')?.classList.remove('active');
+    metaView.textContent = '';
+  }
+};
+
+window.addEventListener('popstate', (e) => {
+  const fileName = e.state?.fileName as string;
+  if (fileName) {
+    const button = midiList.querySelector(`button[value='${fileName}']`) as HTMLButtonElement;
+    if (button) {
+      selectMidiFile(button);
+    } else {
+      history.replaceState({}, '', '/midi-meta-viewer');
+    }
+  } else {
+    switchPanel(sub);
+  }
+});
+
+back.addEventListener('click', () => history.back());
+
+const selectMidiFile = (button: HTMLButtonElement, trusted: boolean = false) => {
+  midiList.querySelector('.active')?.classList.remove('active');
+  button.classList.add('active');
   const songName = button.dataset.songName;
   const fileName = button.value;
   document.title = `${initialTitle} - ${songName || fileName}`;
@@ -317,30 +354,36 @@ const selectMidiFile = (button: HTMLButtonElement) => {
     return;
   }
   renderMetaView(fileTrackMetaList.meta);
+  if (isSmartphone()) {
+    switchPanel(metaView);
+    if (trusted) {
+      history.pushState({ fileName }, '', '#metaView');
+    }
+  }
 };
 
-midiList.addEventListener("click", async (e) => {
-  const button = (e.target as HTMLElement).closest("button") as HTMLButtonElement;
+midiList.addEventListener('click', async (e) => {
+  const button = (e.target as HTMLElement).closest('button') as HTMLButtonElement;
   if (!button) {
       return;
   }
-  selectMidiFile(button);
+  selectMidiFile(button, e.isTrusted);
 });
 
-midiList.addEventListener("keydown", (e) => {
-  if (e.key !== "ArrowUp" && e.key !== "ArrowDown") {
+midiList.addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') {
     return;
   }
-  const buttons = Array.from(midiList.querySelectorAll("button")) as HTMLButtonElement[];
+  const buttons = Array.from(midiList.querySelectorAll('button')) as HTMLButtonElement[];
   if (buttons.length === 0) {
     return;
   }
   e.preventDefault();
-  const activeButton = midiList.querySelector("button.active") as HTMLButtonElement | null;
+  const activeButton = midiList.querySelector('button.active') as HTMLButtonElement | null;
   let nextIndex = 0;
   if (activeButton) {
     const currentIndex = buttons.indexOf(activeButton);
-    if (e.key === "ArrowDown") {
+    if (e.key === 'ArrowDown') {
       nextIndex = (currentIndex + 1) % buttons.length;
     } else {
       nextIndex = (currentIndex - 1 + buttons.length) % buttons.length;
@@ -350,3 +393,23 @@ midiList.addEventListener("keydown", (e) => {
   selectMidiFile(button);
   button.focus();
 });
+
+const layoutControl = () => {
+  if (isSmartphone()) {
+    const activeMidi = midiList.querySelector('.active');
+    const fileName = activeMidi?.querySelector('button')?.value;
+    if (activeMidi) {
+      switchPanel(metaView);
+      history.pushState({ fileName }, '', '#metaView');
+    } else {
+      switchPanel(sub);
+    }
+  } else {
+    back.hidden = true;
+    sub.hidden = metaView.hidden = false;
+    history.replaceState({}, '', '/midi-meta-viewer');
+  }
+};
+
+layoutControl();
+isSmartphoneMedia.addEventListener('change', layoutControl);
