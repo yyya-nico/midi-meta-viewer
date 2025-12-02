@@ -317,6 +317,10 @@ header {
       color: #a0a0a0;
     }
   }
+
+  .main {
+    flex-grow: 1;
+  }
 }
 
 #midi-list {
@@ -358,19 +362,15 @@ header {
 }
 
 #meta-view {
-  flex-grow: 1;
   max-width: 720px;
-  padding: 20px 15px;
-  margin: 0 auto;
+  margin: 20px auto;
+  padding: 0 15px;
 
-  fieldset {
-    + fieldset {
-      margin-top: 15px;
-    }
-
-    legend {
-      text-align: center;
-    }
+  > * {
+    margin: 8px 0;
+  }
+  legend {
+    text-align: center;
   }
 }
 

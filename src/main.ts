@@ -220,11 +220,19 @@ const renderMidiList = (fileTrackMetaLists: { name: string, meta?: TrackMetaList
   midiList.innerHTML = html;
 };
 
-const renderMetaView = (trackMetaList: TrackMetaList) => {
+const renderMetaView = (fileTrackMetaList: { name: string, meta?: TrackMetaList, error?: any }) => {
   // metaViewをクリア
   metaView.textContent = '';
   let hasMeta = false;
-  for (const track of trackMetaList) {
+  const fileNameDl = document.createElement('dl');
+  const fileNameDt = document.createElement('dt');
+  fileNameDt.textContent = 'ファイル名';
+  const fileNameDd = document.createElement('dd');
+  fileNameDd.textContent = fileTrackMetaList.name;
+  fileNameDl.appendChild(fileNameDt);
+  fileNameDl.appendChild(fileNameDd);
+  metaView.appendChild(fileNameDl);
+  for (const track of fileTrackMetaList.meta || []) {
     if (track.meta.length === 0) continue;
     hasMeta = true;
     const fieldset = document.createElement('fieldset');
@@ -268,7 +276,9 @@ const renderMetaView = (trackMetaList: TrackMetaList) => {
     metaView.appendChild(fieldset);
   }
   if (!hasMeta) {
-    metaView.textContent = 'メタ情報が見つかりませんでした。';
+    const p = document.createElement('p');
+    p.textContent = 'メタ情報が見つかりませんでした。';
+    metaView.appendChild(p);
   }
 };
 
@@ -353,7 +363,7 @@ const selectMidiFile = (button: HTMLButtonElement, trusted: boolean = false) => 
     metaView.textContent = 'メタ情報が見つかりませんでした。';
     return;
   }
-  renderMetaView(fileTrackMetaList.meta);
+  renderMetaView(fileTrackMetaList);
   if (isSmartphone()) {
     switchPanel(metaView);
     if (trusted) {
