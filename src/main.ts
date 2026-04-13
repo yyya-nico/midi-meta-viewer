@@ -13,6 +13,7 @@ const sub = document.querySelector('.sub') as HTMLDivElement;
 const fileInput = document.getElementById('file-input') as HTMLInputElement;
 const fileInputText = document.querySelector('.file-input-text') as HTMLSpanElement;
 const midiList = document.getElementById('midi-list') as HTMLUListElement;
+const charsetSelect = document.getElementById('charset-select') as HTMLSelectElement;
 const metaView = document.getElementById('meta-view') as HTMLDivElement;
 
 // XF情報の型
@@ -44,6 +45,11 @@ type TrackMeta = {
 
 // トラックメタリストの型
 type TrackMetaList = TrackMeta[];
+
+type FileSource = {
+  name: string;
+  data: Uint8Array;
+};
 
 // MIDIメタイベントタイプ
 const META_EVENT_TYPES: Record<number, string> = {
@@ -84,6 +90,25 @@ const XF_INFO_TYPES: Record<string, string[]> = {
   ]
 };
 
+// XFの文字コードマッピング
+const XF_CHARSET: Record<string, string> = {
+  'L1': 'Latin1',
+  'JP': 'Shift-JIS',
+  'KR': 'ISO-2022-KR',
+  'HZ': 'HZ-GB-2312',
+  'B5': 'Big5',
+  'CY': 'KOI8-R',
+  'VN': 'CP1258',
+};
+
+const textDecode = (data: Uint8Array, charset: string) => {
+  try {
+    return new TextDecoder(charset).decode(data);
+  } catch {
+    return new TextDecoder('Latin1').decode(data);
+  }
+};
+
 // 可変長値のデコード
 function readVarLen(data: Uint8Array, offset: number): { value: number, next: number } {
   let value = 0;
@@ -96,7 +121,7 @@ function readVarLen(data: Uint8Array, offset: number): { value: number, next: nu
   return { value, next: i };
 }
 
-const parseMidi = (data: Uint8Array) => {
+const parseMidi = (data: Uint8Array, charset: string) => {
   const isMidi =  data[0] === 0x4d && data[1] === 0x54 && data[2] === 0x68 && data[3] === 0x64;
   if (!isMidi) {
     throw new Error('MIDIファイルではありません。');
@@ -145,9 +170,18 @@ const parseMidi = (data: Uint8Array) => {
             }
             return META_EVENT_TYPES[metaType];
           })();
-          const text = new TextDecoder('Shift-JIS').decode(data.slice(i, i+len));
+          const rawText = data.slice(i, i + len);
+          let text = textDecode(rawText, charset);
           const firstFourChars = text.slice(0, 4);
           if (firstFourChars === 'XFhd' || firstFourChars === 'XFln') {
+            if (firstFourChars === 'XFln') {
+              const infoItems = text.split(':');
+              const language = infoItems[1];
+              const charset = language ? XF_CHARSET[language] : undefined;
+              if (charset) {
+                text = textDecode(rawText, charset);
+              }
+            }
             // XF項目を共通・言語別で分けて格納
             const infoItems = text.split(':');
             const types = XF_INFO_TYPES[firstFourChars];
@@ -202,7 +236,15 @@ const parseMidi = (data: Uint8Array) => {
   return trackMetaList;
 };
 
-const renderMidiList = (fileTrackMetaLists: { name: string, meta?: TrackMetaList, error?: any }[]) => {
+const renderMidiList = (fileSources: FileSource[]) => {
+  const fileTrackMetaLists: { name: string, meta?: TrackMetaList, error?: any }[] = fileSources.map(({ name, data }) => {
+    try {
+      const meta = parseMidi(data, charsetSelect.value);
+      return { name, meta };
+    } catch ( error: any ) {
+      return { name, error };
+    }
+  });
   // midiListをクリア
   midiList.textContent = '';
   const html = fileTrackMetaLists.map(file => {
@@ -283,7 +325,7 @@ const renderMetaView = (fileTrackMetaList: { name: string, meta?: TrackMetaList,
 };
 
 const initialFileInputText = fileInputText.textContent;
-let fileTrackMetaLists: { name: string, meta?: TrackMetaList, error?: any }[] = [];
+let fileSources: FileSource[] = [];
 fileInput.addEventListener('change', async () => {
   const files = fileInput.files;
   if (!files || files.length === 0) {
@@ -300,20 +342,8 @@ fileInput.addEventListener('change', async () => {
     name: file.name,
     data: new Uint8Array(await file.arrayBuffer())
   })));
-  fileTrackMetaLists = fileBinaryArrays.map(({ name, data }) => {
-    try {
-      return {
-        name,
-        meta: parseMidi(data)
-      };
-    } catch (e: any) {
-      return {
-        name,
-        error: e
-      };
-    }
-  });
-  renderMidiList(fileTrackMetaLists);
+  fileSources = fileBinaryArrays.map(({ name, data }) => ({ name, data }));
+  renderMidiList(fileSources);
 });
 
 const switchPanel = (elem: HTMLElement) => {
@@ -334,12 +364,7 @@ const switchPanel = (elem: HTMLElement) => {
 window.addEventListener('popstate', (e) => {
   const fileName = e.state?.fileName as string;
   if (fileName) {
-    const button = midiList.querySelector(`button[value='${fileName}']`) as HTMLButtonElement;
-    if (button) {
-      selectMidiFile(button);
-    } else {
-      history.replaceState({}, '', '/midi-meta-viewer');
-    }
+    selectMidiFile(fileName);
   } else {
     switchPanel(sub);
   }
@@ -347,15 +372,27 @@ window.addEventListener('popstate', (e) => {
 
 back.addEventListener('click', () => history.back());
 
-const selectMidiFile = (button: HTMLButtonElement, trusted: boolean = false) => {
+const selectMidiFile = (fileName: string, trusted: boolean = false) => {
+  const fileSource = fileSources.find(f => f.name === fileName);
+  if (!fileSource) {
+    return;
+  }
+  const button = midiList.querySelector(`button[value='${fileName}']`) as HTMLButtonElement;
+  if (!button) {
+    return;
+  }
   midiList.querySelector('.active')?.classList.remove('active');
   button.classList.add('active');
   const songName = button.dataset.songName;
-  const fileName = button.value;
   document.title = `${initialTitle} - ${songName || fileName}`;
   songNameDiv.textContent = songName || fileName;
-  const fileTrackMetaList = fileTrackMetaLists.find(file => file.name === fileName);
-  if (!fileTrackMetaList) return;
+  let fileTrackMetaList: { name: string, meta?: TrackMetaList, error?: any };
+  try {
+    const meta = parseMidi(fileSource.data, charsetSelect.value);
+    fileTrackMetaList = { name: fileName, meta };
+  } catch (error: any) {
+    fileTrackMetaList = { name: fileName, error };
+  }
   if ('error' in fileTrackMetaList) {
     metaView.textContent = fileTrackMetaList.error.message || 'MIDIファイルの解析に失敗しました。';
     return;
@@ -377,7 +414,7 @@ midiList.addEventListener('click', async (e) => {
   if (!button) {
       return;
   }
-  selectMidiFile(button, e.isTrusted);
+  selectMidiFile(button.value, e.isTrusted);
 });
 
 midiList.addEventListener('keydown', (e) => {
@@ -400,8 +437,16 @@ midiList.addEventListener('keydown', (e) => {
     }
   }
   const button = buttons[nextIndex];
-  selectMidiFile(button);
+  selectMidiFile(button.value);
   button.focus();
+});
+
+charsetSelect.addEventListener('change', () => {
+  const activeButton = midiList.querySelector('button.active') as HTMLButtonElement | null;
+  renderMidiList(fileSources);
+  if (activeButton) {
+    selectMidiFile(activeButton.value);
+  }
 });
 
 const layoutControl = () => {
