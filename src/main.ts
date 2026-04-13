@@ -337,13 +337,12 @@ fileInput.addEventListener('change', async () => {
     return;
   }
   fileInputText.textContent = `${files.length}個のファイル`;
-  const fileBinaryArrays = await Promise.all([...files]
+  fileSources = await Promise.all([...files]
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(async file => ({
     name: file.name,
     data: new Uint8Array(await file.arrayBuffer())
   })));
-  fileSources = fileBinaryArrays.map(({ name, data }) => ({ name, data }));
   renderMidiList(fileSources);
 });
 
