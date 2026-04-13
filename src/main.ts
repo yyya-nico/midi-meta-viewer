@@ -329,6 +329,7 @@ let fileSources: FileSource[] = [];
 fileInput.addEventListener('change', async () => {
   const files = fileInput.files;
   if (!files || files.length === 0) {
+    fileSources = [];
     songNameDiv.textContent = '';
     fileInputText.textContent = initialFileInputText;
     midiList.textContent = '';
