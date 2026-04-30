@@ -15,6 +15,8 @@ const fileInputText = document.querySelector('.file-input-text') as HTMLSpanElem
 const midiList = document.getElementById('midi-list') as HTMLUListElement;
 const charsetSelect = document.getElementById('charset-select') as HTMLSelectElement;
 const metaView = document.getElementById('meta-view') as HTMLDivElement;
+const config = document.getElementById('config') as HTMLDivElement;
+const isDefaultSpan = document.querySelector('.is-default') as HTMLSpanElement;
 
 // XF情報の型
 type XFInfo = {
@@ -48,7 +50,9 @@ type TrackMetaList = TrackMeta[];
 
 type FileSource = {
   name: string;
+  charset: string;
   data: Uint8Array;
+  isXF: boolean;
 };
 
 // MIDIメタイベントタイプ
@@ -109,6 +113,8 @@ const textDecode = (data: Uint8Array, charset: string) => {
   }
 };
 
+let defaultCharset = charsetSelect.value;
+
 // 可変長値のデコード
 function readVarLen(data: Uint8Array, offset: number): { value: number, next: number } {
   let value = 0;
@@ -121,7 +127,8 @@ function readVarLen(data: Uint8Array, offset: number): { value: number, next: nu
   return { value, next: i };
 }
 
-const parseMidi = (data: Uint8Array, charset: string) => {
+const parseMidi = (fileSource: FileSource) => {
+  const data = fileSource.data;
   const isMidi =  data[0] === 0x4d && data[1] === 0x54 && data[2] === 0x68 && data[3] === 0x64;
   if (!isMidi) {
     throw new Error('MIDIファイルではありません。');
@@ -171,15 +178,16 @@ const parseMidi = (data: Uint8Array, charset: string) => {
             return META_EVENT_TYPES[metaType];
           })();
           const rawText = data.slice(i, i + len);
-          let text = textDecode(rawText, charset);
+          let text = textDecode(rawText, fileSource.charset);
           const firstFourChars = text.slice(0, 4);
           if (firstFourChars === 'XFhd' || firstFourChars === 'XFln') {
+            fileSource.isXF = true;
             if (firstFourChars === 'XFln') {
               const infoItems = text.split(':');
-              const language = infoItems[1];
-              const charset = language ? XF_CHARSET[language] : undefined;
-              if (charset) {
-                text = textDecode(rawText, charset);
+              const language = infoItems[1] || 'L1';
+              if (XF_CHARSET[language] !== fileSource.charset) {
+                fileSource.charset = XF_CHARSET[language];
+                return parseMidi(fileSource);
               }
             }
             // XF項目を共通・言語別で分けて格納
@@ -237,12 +245,12 @@ const parseMidi = (data: Uint8Array, charset: string) => {
 };
 
 const renderMidiList = (fileSources: FileSource[]) => {
-  const fileTrackMetaLists: { name: string, meta?: TrackMetaList, error?: any }[] = fileSources.map(({ name, data }) => {
+  const fileTrackMetaLists: { name: string, meta?: TrackMetaList, error?: any }[] = fileSources.map(fileSource => {
     try {
-      const meta = parseMidi(data, charsetSelect.value);
-      return { name, meta };
+      const meta = parseMidi(fileSource);
+      return { name: fileSource.name, meta };
     } catch ( error: any ) {
-      return { name, error };
+      return { name: fileSource.name, error };
     }
   });
   // midiListをクリア
@@ -262,7 +270,7 @@ const renderMidiList = (fileSources: FileSource[]) => {
   midiList.innerHTML = html;
 };
 
-const renderMetaView = (fileTrackMetaList: { name: string, meta?: TrackMetaList, error?: any }) => {
+const renderMetaView = (fileTrackMetaList: { name: string, meta?: TrackMetaList, error?: any }, fileSource: FileSource) => {
   // metaViewをクリア
   metaView.textContent = '';
   let hasMeta = false;
@@ -322,6 +330,9 @@ const renderMetaView = (fileTrackMetaList: { name: string, meta?: TrackMetaList,
     p.textContent = 'メタ情報が見つかりませんでした。';
     metaView.appendChild(p);
   }
+  charsetSelect.value = fileSource.charset;
+  charsetSelect.disabled = fileSource.isXF;
+  config.hidden = !hasMeta;
 };
 
 const initialFileInputText = fileInputText.textContent;
@@ -333,15 +344,22 @@ fileInput.addEventListener('change', async () => {
     songNameDiv.textContent = '';
     fileInputText.textContent = initialFileInputText;
     midiList.textContent = '';
+    isDefaultSpan.hidden = false;
+    charsetSelect.value = defaultCharset;
+    config.hidden = false;
     metaView.textContent = '';
     return;
   }
   fileInputText.textContent = `${files.length}個のファイル`;
+  config.hidden = true;
+  isDefaultSpan.hidden = true;
   fileSources = await Promise.all([...files]
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(async file => ({
     name: file.name,
-    data: new Uint8Array(await file.arrayBuffer())
+    charset: defaultCharset,
+    data: new Uint8Array(await file.arrayBuffer()),
+    isXF: false
   })));
   renderMidiList(fileSources);
 });
@@ -388,19 +406,21 @@ const selectMidiFile = (fileName: string, trusted: boolean = false) => {
   songNameDiv.textContent = songName || fileName;
   let fileTrackMetaList: { name: string, meta?: TrackMetaList, error?: any };
   try {
-    const meta = parseMidi(fileSource.data, charsetSelect.value);
+    const meta = parseMidi(fileSource);
     fileTrackMetaList = { name: fileName, meta };
   } catch (error: any) {
     fileTrackMetaList = { name: fileName, error };
   }
   if ('error' in fileTrackMetaList) {
     metaView.textContent = fileTrackMetaList.error.message || 'MIDIファイルの解析に失敗しました。';
+    config.hidden = true;
     return;
   } else if (!fileTrackMetaList.meta) {
     metaView.textContent = 'メタ情報が見つかりませんでした。';
+    config.hidden = true;
     return;
   }
-  renderMetaView(fileTrackMetaList);
+  renderMetaView(fileTrackMetaList, fileSource);
   if (isSmartphone()) {
     switchPanel(metaView);
     if (trusted) {
@@ -442,10 +462,18 @@ midiList.addEventListener('keydown', (e) => {
 });
 
 charsetSelect.addEventListener('change', () => {
+  if (!isDefaultSpan.hidden) {
+    defaultCharset = charsetSelect.value;
+  }
   const activeButton = midiList.querySelector('button.active') as HTMLButtonElement | null;
+  if (!activeButton) return;
+  const fileName = activeButton.value;
+  const fileSource = fileSources.find(f => f.name === fileName);
+  if (!fileSource) return;
+  fileSource.charset = charsetSelect.value;
   renderMidiList(fileSources);
-  if (activeButton) {
-    selectMidiFile(activeButton.value);
+  if (fileName) {
+    selectMidiFile(fileName);
   }
 });
 

@@ -328,11 +328,10 @@ header {
     label[for="charset-select"] {
       display: flex;
       align-items: center;
-      gap: 10px;
       max-width: 720px;
-      margin: 12px auto 0;
-      padding: 0 15px 12px;
-      border-bottom: 1px solid #484848;
+      margin: 0 auto 12px;
+      padding: 12px 15px 0;
+      border-top: 1px solid #484848;
       color: #c8c8c8;
       font-size: 0.95rem;
       line-height: 1.4;
@@ -340,6 +339,7 @@ header {
 
     #charset-select {
       min-width: 160px;
+      margin-inline-start: 10px;
     }
   }
 }
@@ -405,13 +405,13 @@ header {
 
     .main {
       label[for="charset-select"] {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 6px;
+        flex-wrap: wrap;
       }
 
       #charset-select {
         width: 100%;
+        margin-block-start: 6px;
+        margin-inline-start: 0;
       }
     }
   }
