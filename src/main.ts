@@ -346,6 +346,7 @@ fileInput.addEventListener('change', async () => {
     midiList.textContent = '';
     isDefaultSpan.hidden = false;
     charsetSelect.value = defaultCharset;
+    charsetSelect.disabled = false;
     config.hidden = false;
     metaView.textContent = '';
     return;
